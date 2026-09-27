@@ -6,7 +6,8 @@ from tavily import TavilyClient
 from urllib.parse import urlparse
 from langchain_openai import ChatOpenAI
 from langgraph.graph import END, START, StateGraph
-from app.agent.extractor import extract_article
+from app.agent.extractor import ExtractedArticle, extract_article
+from app.agent.claims import Claim, extract_claims
 
 load_dotenv()
 
@@ -23,11 +24,11 @@ class SearchResult(TypedDict):
     url: str
     snippet: str
 
-
 class NewsSearchState(TypedDict):
-    query: str
-    search_queries: list[str]
-    results: list[SearchResult]
+	query: str
+	search_queries: list[str]
+	results: list[SearchResult]
+	claims: list[Claim]
 
 def search_news(state: NewsSearchState) -> NewsSearchState:
     client = TavilyClient(os.environ["TAVILY_API_KEY"])
@@ -100,15 +101,30 @@ def extract_articles(state: NewsSearchState) -> NewsSearchState:
         "results": extracted_results,
     }
 
+def extract_article_claims(state: NewsSearchState) -> NewsSearchState:
+    claims = []
+
+    for article in state["results"]:
+        if article["status"] == "extracted":
+            claims.extend(extract_claims(article))
+
+    return {
+        **state,
+        "claims": claims,
+    }
+
 builder = StateGraph(NewsSearchState)
 
 builder.add_node("generate_queries", generate_search_queries)
 builder.add_node("search_news", search_news)
 builder.add_node("extract_articles", extract_articles)
+builder.add_node("extract_claims", extract_article_claims)
 
 builder.add_edge(START, "generate_queries")
 builder.add_edge("generate_queries", "search_news")
 builder.add_edge("search_news", "extract_articles")
-builder.add_edge("extract_articles", END)
+builder.add_edge("extract_articles","extract_claims")
+
+builder.add_edge("extract_claims",END)
 
 news_search_graph = builder.compile()
