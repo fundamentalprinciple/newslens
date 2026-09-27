@@ -68,13 +68,23 @@ def deduplicate_results(results: list[SearchResult]) -> list[SearchResult]:
 
     return unique_results
 
+from datetime import date
+
 def generate_search_queries(state: NewsSearchState) -> NewsSearchState:
     prompt = f"""
-Generate 3 concise web search queries for this news topic:
+Generate 3 concise web search queries for this news topic.
 
+Current date: {date.today().isoformat()}
+
+User topic:
 {state["query"]}
 
-Return only the 3 queries, one per line.
+Rules:
+- For "latest", "recent", "today", "this week", or similar requests, prioritize current news.
+- Do not use an outdated year unless the user explicitly asks about that year.
+- Include the current year when it improves search relevance.
+- Keep each query concise and useful for finding recent reporting.
+- Return only the 3 queries, one per line.
 """
 
     response = llm.invoke(prompt)

@@ -2,9 +2,17 @@ from fastapi import FastAPI
 from pydantic import BaseModel
 
 from app.agent.graph import news_search_graph
+from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI(title="NewsLens API")
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 class NewsQuery(BaseModel):
     query: str
@@ -29,4 +37,5 @@ def search_news(query: NewsQuery):
         "query": result["query"],
         "search_queries": result["search_queries"],
         "results": result["results"],
+		"claims": result["claims"],
     }
