@@ -4,10 +4,9 @@ from typing import TypedDict
 from dotenv import load_dotenv
 from tavily import TavilyClient
 from urllib.parse import urlparse
-
 from langchain_openai import ChatOpenAI
-
 from langgraph.graph import END, START, StateGraph
+from app.agent.extractor import extract_article
 
 load_dotenv()
 
@@ -90,15 +89,26 @@ Return only the 3 queries, one per line.
         "search_queries": queries,
     }
 
+def extract_articles(state: NewsSearchState) -> NewsSearchState:
+    extracted_results = [
+        extract_article(result)
+        for result in state["results"]
+    ]
+
+    return {
+        **state,
+        "results": extracted_results,
+    }
+
 builder = StateGraph(NewsSearchState)
 
 builder.add_node("generate_queries", generate_search_queries)
 builder.add_node("search_news", search_news)
+builder.add_node("extract_articles", extract_articles)
 
 builder.add_edge(START, "generate_queries")
 builder.add_edge("generate_queries", "search_news")
-builder.add_edge("search_news", END)
+builder.add_edge("search_news", "extract_articles")
+builder.add_edge("extract_articles", END)
 
 news_search_graph = builder.compile()
-
-
